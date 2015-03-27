@@ -6,8 +6,8 @@
 
 import random
 from datetime import *
-
-NO_OF_RECENT_SCORES = 3
+ACE_HIGH = False
+NO_OF_RECENT_SCORES = 10
 
 class TCard():
   def __init__(self):
@@ -73,12 +73,14 @@ def DisplayMenu():
   print('2. Play game (without shuffle)')
   print('3. Display recent scores')
   print('4. Reset recent scores')
-  print()
+  print("5. Options")
+  print('6. Save high scores')
   print('Select an option from the menu (or enter q to quit): ', end='')
 
 def GetMenuChoice():
   Choice = input()
   print()
+  Choice = Choice.lower()[0]
   return Choice
 
 def LoadDeck(Deck):
@@ -122,6 +124,14 @@ def GetCard(ThisCard, Deck, NoOfCardsTurnedOver):
   Deck[52 - NoOfCardsTurnedOver].Rank = 0
 
 def IsNextCardHigher(LastCard, NextCard):
+  if ACE_HIGH and NextCard.Rank == 1:
+    NextCard.Rank = 14
+  if ACE_HIGH and LastCard.Rank == 1:
+    LastCard.Rank = 14
+  if not ACE_HIGH and NextCard.Rank == 14:
+    NextCard.Rank = 1
+  if not ACE_HIGH and LastCard.Rank == 14:
+    LastCard.Rank = 1
   Higher = False
   if NextCard.Rank > LastCard.Rank:
     Higher = True
@@ -140,6 +150,7 @@ def GetPlayerName():
 
 def GetChoiceFromUser():
   Choice = input('Do you think the next card will be higher than the last card (enter y or n)? ')
+  Choice = Choice.lower()[0]
   return Choice
 
 def DisplayEndOfGameMessage(Score):
@@ -160,17 +171,20 @@ def ResetRecentScores(RecentScores):
   for Count in range(1, NO_OF_RECENT_SCORES + 1):
     RecentScores[Count].Name = ''
     RecentScores[Count].Score = 0
-    RecentScores[Count].date = ""
+    RecentScores[Count].date = None
 
 def DisplayRecentScores(RecentScores):
   print()
   print('Recent Scores: ')
   print()
-  print("Date        Name       Score")
-  
+  print("{0:<12}{1:<10}{2:<5}".format("Date","Name","Score"))
+  print()
   for Count in range(1, NO_OF_RECENT_SCORES + 1):
-    print("{0:<11} {1:<10} {2:<5}".format(RecentScores[Count].date, RecentScores[Count].Name,RecentScores[Count].Score))
-    
+    if RecentScores[Count].date != None:
+      Date = RecentScores[Count].date.strftime("%d/%m/%Y")
+    else:
+      Date = "N/A"
+    print("{0:<12}{1:<10}{2:<5}".format(Date,RecentScores[Count].Name,RecentScores[Count].Score))
   print()
   print('Press the Enter key to return to the main menu')
   input()
@@ -199,7 +213,7 @@ def UpdateRecentScores(RecentScores, Score):
       Count = NO_OF_RECENT_SCORES
     RecentScores[Count].Name = PlayerName
     RecentScores[Count].Score = Score
-    RecentScores[Count].date = current_date_string
+    RecentScores[Count].date = date.today()
 
 def PlayGame(Deck, RecentScores):
   LastCard = TCard()
@@ -229,13 +243,105 @@ def PlayGame(Deck, RecentScores):
     DisplayEndOfGameMessage(51)
     UpdateRecentScores(RecentScores, 51)
 
+def DisplayOptions():
+  print()
+  print('OPTION MENU')
+  print()
+  print('1. Set Ace to be HIGH or LOW')
+  print()
+  print('Select an option from the menu (or enter q to quit): ', end='')
+
+def GetOptionChoice():
+  boolean = False
+  while not  boolean:
+      option = input("")
+      if option == "1" or option == "q":
+        boolean = True
+  else:
+    print("Please enter a valid option")
+    print()
+  
+  return option.lower()[0]
+
+def SetOptions(OptionChoice):
+  if OptionChoice == '1':
+      SetAceHighOrLow()
+
+def SetAceHighOrLow():
+  global ACE_HIGH
+  boolean = False
+  while not boolean:
+      Ace = input("Do you want the Ace to be (h)igh or (l)ow: ")
+      Ace = Ace.lower()[0]
+      if Ace== "h" or Ace == "l":
+         boolean = True
+      if Ace == "h":
+        ACE_HIGH = True
+      else:
+        ACE_HIGH = False
+
+def BubbleSortScores(RecentScores):
+  no_more_swaps = True
+  listLen = len(RecentScores)
+  while noMoreSwaps == True:
+      listLen = listLen - 1
+      no_more_swaps = False
+      for place in range(1,listLen-1):
+          if RecentScores[place].Score < RecentScores[place+1].Score:
+              temp = RecentScores[place+1]
+              RecentScores[place+1] = RecentScores[place]
+              RecentScores[place] = temp
+              no_more_swaps = True
+
+def LoadScores():
+  try:
+    with open("scores.txt",mode="r",encoding="utf-8") as file:
+      scores = file.read().splitlines()
+    for score in range(len(scores)):
+        temp = scores[score].split(",")
+        scores[score] = temp
+        
+        ScoreDate = scores[score][0] 
+        day = ScoreDate[0:2]
+        month = ScoreDate[3:5]
+        year = ScoreDate[6:]
+        ScoreDate = date(int(year),int(month),int(day))
+        scores[score][0] = ScoreDate
+    RecentScores = [None]
+    for score in scores:
+      NewScore = TRecentScore()
+      NewScore.date = score[0]
+      NewScore.Name = score[1]
+      NewScore.Score = int(score[2])
+      RecentScores.append(NewScore)
+  except FileNotFoundError:
+    RecentScores = None
+  return RecentScores
+
+
+
+def SaveScores(RecentScores):
+  
+  with open("scores.txt",mode="w",encoding="utf-8") as File:
+    for score in RecentScores:
+      if score != None:
+        if score.Name != "":
+          File.write(score.date.strftime("%d/%m/%Y")+",")
+          File.write(score.Name+",")
+          File.write(str(score.Score)+"\n")
+
 if __name__ == '__main__':
   for Count in range(1, 53):
     Deck.append(TCard())
+  RecentScores = LoadScores()
+  if len(RecentScores) == 0 or len(RecentScores) < NO_OF_RECENT_SCORES:
+    AdditionalScores = NO_OF_RECENT_SCORES - len(RecentScores) + 1
   for Count in range(1, NO_OF_RECENT_SCORES + 1):
     RecentScores.append(TRecentScore())
-  Choice = ''
-  while Choice != 'q' and Choice!= 'Q' and Choice != "quit":
+
+
+  Choice = ""
+  while Choice != "q":
     DisplayMenu()
     Choice = GetMenuChoice()
     if Choice == '1':
@@ -246,6 +352,16 @@ if __name__ == '__main__':
       LoadDeck(Deck)
       PlayGame(Deck, RecentScores)
     elif Choice == '3':
+      BubbleSortScores(RecentScores)
       DisplayRecentScores(RecentScores)
     elif Choice == '4':
       ResetRecentScores(RecentScores)
+    elif Choice == '5':
+      DisplayOptions()
+      OptionChoice = GetOptionChoice()
+      if OptionChoice != "q":
+        SetOptions(OptionChoice)
+    elif Choice == '6':
+      SaveScores(RecentScores)
+  
+  
